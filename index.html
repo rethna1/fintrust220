@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinTrust Holding Period Calculator</title>
+
+<style>
+body{
+  font-family: Arial;
+  background:#f4f6f9;
+  padding:15px;
+  margin:0;
+}
+
+h2{text-align:center;}
+
+.card{
+  background:#fff;
+  padding:15px;
+  border-radius:8px;
+  margin-bottom:15px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+label{
+  font-weight:bold;
+  margin-top:10px;
+  display:block;
+}
+
+input{
+  width:100%;
+  height:48px;
+  padding:10px;
+  margin-top:6px;
+  margin-bottom:12px;
+  border-radius:8px;
+  border:2px solid #ccc;
+  font-size:16px;
+  box-sizing:border-box;
+  -webkit-appearance:none;
+  background:#fff;
+}
+
+input:focus{
+  border-color:#0aa06e;
+  outline:none;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  font-size:16px;
+  background:#0a7cff;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  margin-top:10px;
+  font-weight:bold;
+}
+
+.share-btn{ background:#25D366; }
+
+.result{
+  background:#eef5ff;
+  padding:15px;
+  border-radius:8px;
+  line-height:1.6;
+}
+
+.table-wrap{
+  overflow-x:auto;
+  margin-top:15px;
+}
+
+table{
+  min-width:600px;
+  border-collapse:collapse;
+  background:#fff;
+}
+
+th,td{
+  border:1px solid #ddd;
+  padding:8px;
+  text-align:center;
+}
+
+th{
+  background:#0a7cff;
+  color:#fff;
+}
+</style>
+</head>
+
+<body>
+
+<h2>FinTrust Holding Period Calculator</h2>
+
+<div class="card">
+
+<label>Target Amount (₹)</label>
+<input type="number" id="target" value="5000000">
+
+<label>Monthly SIP (₹)</label>
+<input type="number" id="sip" value="10000">
+
+<label>SIP Years</label>
+<input type="number" id="sipYears" value="8">
+
+<label>Expected Return (%)</label>
+<input type="number" id="rate" value="12">
+
+<label>Step-Up % (Yearly)</label>
+<input type="number" id="stepup" value="10">
+
+<button onclick="calculate()">Calculate</button>
+<button class="share-btn" onclick="share()">Share WhatsApp</button>
+
+</div>
+
+<div class="result" id="result"></div>
+
+<div class="table-wrap">
+<table id="yearTable">
+<thead>
+<tr>
+<th>Year</th>
+<th>Phase</th>
+<th>Value (₹)</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<script>
+
+let summaryText="";
+
+function format(n){
+  return "₹ " + Math.round(n).toLocaleString("en-IN");
+}
+
+function calculate(){
+
+let target = +document.getElementById("target").value;
+let sip = +document.getElementById("sip").value;
+let sipYears = +document.getElementById("sipYears").value;
+let rateAnnual = +document.getElementById("rate").value/100;
+let rate = rateAnnual/12;
+let stepup = +document.getElementById("stepup").value/100;
+
+/* NORMAL SIP */
+let sipMonths = sipYears*12;
+let sipValue = sip * ((Math.pow(1+rate, sipMonths)-1)/rate)*(1+rate);
+
+/* STEP-UP SIP */
+let stepValue = 0;
+let totalMonths = sipYears*12;
+
+for(let y=0;y<sipYears;y++){
+  let monthlySip = sip * Math.pow(1+stepup,y);
+
+  for(let m=1;m<=12;m++){
+    let currentMonth = y*12+m;
+    let monthsLeft = totalMonths-currentMonth;
+
+    stepValue += monthlySip * Math.pow(1+rate,monthsLeft);
+  }
+}
+
+/* HOLDING NORMAL */
+let holdYears = 0;
+let currentValue = sipValue;
+
+while(currentValue < target && holdYears < 50){
+  holdYears++;
+  currentValue *= Math.pow(1+rate,12);
+}
+
+/* HOLDING STEP-UP */
+let holdYearsStep = 0;
+let stepCurrent = stepValue;
+
+while(stepCurrent < target && holdYearsStep < 50){
+  holdYearsStep++;
+  stepCurrent *= Math.pow(1+rate,12);
+}
+
+/* EXTRA WEALTH */
+let extraWealth = stepCurrent - currentValue;
+
+/* RESULT */
+
+document.getElementById("result").innerHTML=
+
+"<b>📈 NORMAL SIP</b><br>"+
+"Value after SIP: "+format(sipValue)+"<br>"+
+"Holding Years Needed: "+holdYears+" yrs<br>"+
+"Total Time: "+(sipYears+holdYears)+" yrs<br>"+
+"Holding Period Value: "+format(currentValue)+"<br>"+
+"Growth During Holding: "+format(currentValue - sipValue)+"<br><br>"+
+
+"<b>🚀 STEP-UP SIP</b><br>"+
+"Value after SIP: "+format(stepValue)+"<br>"+
+"Holding Years Needed: "+holdYearsStep+" yrs<br>"+
+"Total Time: "+(sipYears+holdYearsStep)+" yrs<br>"+
+"Holding Period Value: "+format(stepCurrent)+"<br>"+
+"Growth During Holding: "+format(stepCurrent - stepValue)+"<br><br>"+
+
+"<b>💡 COMPARISON</b><br>"+
+"Time Saved: "+(holdYears-holdYearsStep)+" Years<br>"+
+"Extra Wealth Created: "+format(extraWealth);
+
+/* TABLE */
+let tbody=document.querySelector("#yearTable tbody");
+tbody.innerHTML="";
+
+let value=0;
+
+/* SIP YEARS */
+for(let y=1;y<=sipYears;y++){
+  let months=y*12;
+  value = sip * ((Math.pow(1+rate, months)-1)/rate)*(1+rate);
+
+  tbody.innerHTML +=
+  "<tr><td>"+y+"</td><td>SIP</td><td>"+format(value)+"</td></tr>";
+}
+
+/* HOLDING */
+let holdValue=value;
+
+for(let y=1;y<=holdYears;y++){
+  holdValue *= Math.pow(1+rate,12);
+
+  tbody.innerHTML +=
+  "<tr><td>"+(sipYears+y)+"</td><td>Holding</td><td>"+format(holdValue)+"</td></tr>";
+}
+
+/* WHATSAPP */
+
+summaryText=
+"FinTrust Holding Calculator\n\n"+
+
+"Target: Rs "+Math.round(target).toLocaleString("en-IN")+"\n"+
+"Monthly SIP: Rs "+Math.round(sip).toLocaleString("en-IN")+"\n"+
+"SIP Years: "+sipYears+" Years\n\n"+
+
+"--- NORMAL SIP ---\n"+
+"Value after SIP: Rs "+Math.round(sipValue).toLocaleString("en-IN")+"\n"+
+"Holding Needed: "+holdYears+" Years\n"+
+"Final Value: Rs "+Math.round(currentValue).toLocaleString("en-IN")+"\n"+
+"Total Time: "+(sipYears+holdYears)+" Years\n\n"+
+
+"--- STEP-UP SIP ---\n"+
+"Step-Up: "+(stepup*100)+"%\n"+
+"Value after SIP: Rs "+Math.round(stepValue).toLocaleString("en-IN")+"\n"+
+"Holding Needed: "+holdYearsStep+" Years\n"+
+"Final Value: Rs "+Math.round(stepCurrent).toLocaleString("en-IN")+"\n"+
+"Total Time: "+(sipYears+holdYearsStep)+" Years\n\n"+
+
+"Time Saved: "+(holdYears-holdYearsStep)+" Years\n"+
+"Extra Wealth Created: Rs "+Math.round(extraWealth).toLocaleString("en-IN")+"\n\n"+
+
+"Smart strategy: Invest less, wait more 💰";
+
+}
+
+/* SHARE */
+
+function share(){
+if(!summaryText){
+alert("Calculate first");
+return;
+}
+window.open("https://wa.me/?text="+encodeURIComponent(summaryText),'_blank');
+}
+
+</script>
+
+<!-- BACK BUTTON - LEFT ARROW (Same style as scroll top) -->
+<style>
+#backBtn {
+  position: fixed;
+  left: 20px;
+  bottom: 25px;
+  width: 55px;
+  height: 55px;
+  background-color: #f2f2f2;  /* off-white */
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+#backBtn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: #000000;      /* BLACK arrow */
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Hover effect */
+#backBtn:hover {
+  background-color: #e6e6e6;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+}
+</style>
+
+<a href="main-landing-page.html" id="backBtn" title="Back">
+  <svg viewBox="0 0 24 24">
+    <!-- LEFT POINTING ARROW (same style as scroll button) -->
+    <path d="M15 6l-6 6 6 6" />
+  </svg>
+</a>
+
+</body>
+</html>
